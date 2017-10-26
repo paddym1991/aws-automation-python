@@ -20,8 +20,8 @@ def create_instance():
         KeyName='paddykeypair',
         UserData='''#!bin/bash
             yum -y update
-            yum install nginx
-            yum -y install python 35
+            yum -y install nginx
+            yum -y install python35
             service nginx start
             chkconfig nginx on
             touch /home/ec2-user/testfile''',
@@ -55,6 +55,7 @@ def ssh_check(instance):
     print("CHECKING SSH ACCESS ON INSTANCE...")
     cmd_ssh_check = "ssh -o StrictHostKeyChecking=no -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " 'pwd'"
     time.sleep(40)
+    print("-------------------")
     instance.reload()
     (status, output) = subprocess.getstatusoutput(cmd_ssh_check)
     print("output: " + output)
