@@ -19,13 +19,15 @@ def create_instance():
         SecurityGroupIds=['sg-e8c22993'],
         KeyName='paddykeypair',
         UserData='''#!bin/bash
-  		    yum -y update
-  		    yum -y install nginx
-       	    service nginx start
-	        chkconfig nginx on
-	        touch /home/ec2-user/testfile''',
+            yum -y update
+            yum install nginx
+            yum -y install python 35
+            service nginx start
+            chkconfig nginx on
+            touch /home/ec2-user/testfile''',
         InstanceType='t2.micro')
 
+    print()
     print("CREATING INSTANCE")
     print("-------------------")
     time.sleep(1)
@@ -52,7 +54,7 @@ def ssh_check(instance):
     #ssh check command
     print("CHECKING SSH ACCESS ON INSTANCE...")
     cmd_ssh_check = "ssh -o StrictHostKeyChecking=no -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " 'pwd'"
-    time.sleep(60)
+    time.sleep(40)
     instance.reload()
     (status, output) = subprocess.getstatusoutput(cmd_ssh_check)
     print("output: " + output)
@@ -62,13 +64,12 @@ def ssh_check(instance):
     else:
         print("ssh test failed")
 
-    time.sleep(1)
-
     return pub_ip_inst
 
 
 # copy check_webserver.py to the instance
 def securecopy_check_webserver(pub_ip_inst):
+    time.sleep(2)
     print()
     print("COPYING CHECK_WEBSERVER.PY TO INSTANCE")
     print("-------------------")
@@ -87,7 +88,7 @@ def securecopy_check_webserver(pub_ip_inst):
 
 # execute the check_webserver
 def execute_check_webserver(pub_ip_inst):
-    time.sleep(1)
+    time.sleep(2)
     print()
     print("MAKING CHECK_WEBSERVER.PY EXECUTABLE")
     print("-------------------")
@@ -107,7 +108,8 @@ def execute_check_webserver(pub_ip_inst):
         print("-------------------")
         time.sleep(1)
         # after informing user that it's executable, run the file
-        exe_check_webserver = "ssh  -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " './check_webserver.py'"
+        exe_check_webserver = "ssh -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " './check_webserver.py'"
+        print("command to run: ", exe_check_webserver)
         (status, output) = subprocess.getstatusoutput(exe_check_webserver)
         # print the output and status of the check_webserver file when run
         print("output: " + output)
@@ -121,14 +123,24 @@ def execute_check_webserver(pub_ip_inst):
         print("check_webserver is not executable")
 
 
+# creating a new bucket
 def create_bucket():
-    for bucket_name in sys.argv[1:]:
-        try:
-            response = s3.create_bucket(Bucket=bucket_name,
-                                            CreateBucketConfiguration={'LocationConstraint': 'eu-west-1'})
-            print(response)
-        except Exception as error:
-            print(error)
+    time.sleep(2)
+    print()
+    print("CREATING A BUCKET")
+    print("-------------------")
+    time.sleep(1)
+    # get bucket name input from user
+    bucket_name = input("Please Enter Bucket name: ")
+    try:
+        # create bucket with location in Ireland
+        response = s3.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={'LocationConstraint': 'eu-west-1'})
+        # if bucket successfully created then print message for user
+        print("creating bucket successful")
+        print(response)
+    # if there is an error creating a bucket, print message for user
+    except Exception as error:
+        print(error)
 
 
 def main():
@@ -136,6 +148,7 @@ def main():
     pub_ip_inst = ssh_check(instance)
     securecopy_check_webserver(pub_ip_inst)
     execute_check_webserver(pub_ip_inst)
+    create_bucket()
 
 
 if __name__ == '__main__':
