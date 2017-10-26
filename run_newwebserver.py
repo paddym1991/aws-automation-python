@@ -3,8 +3,10 @@
 import boto3
 import time
 import subprocess
+import sys
 
 ec2 = boto3.resource('ec2')
+s3 = boto3.resource("s3")
 
 #create an instance
 def create_instance():
@@ -24,11 +26,18 @@ def create_instance():
 	        touch /home/ec2-user/testfile''',
         InstanceType='t2.micro')
 
+    print("CREATING INSTANCE")
+    print("-------------------")
+    time.sleep(1)
     print("An instance with ID: ", instance[0].id, " has been created.")
+    print()
+    print("RETRIEVING PUBLIC IP ADDRESS")
+    print("-------------------")
     time.sleep(5)
     instance = instance[0]
     instance.reload()
     print("Public IP address: ", instance.public_ip_address)
+    print()
 
     return instance
 
@@ -41,26 +50,35 @@ def ssh_check(instance):
     pub_ip_inst = instance.public_ip_address
 
     #ssh check command
+    print("CHECKING SSH ACCESS ON INSTANCE...")
     cmd_ssh_check = "ssh -o StrictHostKeyChecking=no -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " 'pwd'"
     time.sleep(60)
     instance.reload()
     (status, output) = subprocess.getstatusoutput(cmd_ssh_check)
+    print("output: " + output)
+    print("status: ", status)
     if status == 0:
         print("ssh test passed")
     else:
         print("ssh test failed")
-    print(output)
+
+    time.sleep(1)
 
     return pub_ip_inst
 
 
 # copy check_webserver.py to the instance
 def securecopy_check_webserver(pub_ip_inst):
-
+    print()
+    print("COPYING CHECK_WEBSERVER.PY TO INSTANCE")
+    print("-------------------")
+    time.sleep(1)
     cmd_scp = "scp -i ~/dev-ops/paddykeypair.pem check_webserver.py ec2-user@" + pub_ip_inst + ":."
-    # check if check_webserver was copied
+    # carrying out secure copy command
     (status, output) = subprocess.getstatusoutput(cmd_scp)
-    print(output)
+    print("output: " + output)
+    print("status: ", status)
+    # check if check_webserver was copied
     if (status == 0):
         print("check_webserver successfully copied")
     else:
@@ -69,21 +87,31 @@ def securecopy_check_webserver(pub_ip_inst):
 
 # execute the check_webserver
 def execute_check_webserver(pub_ip_inst):
+    time.sleep(1)
+    print()
+    print("MAKING CHECK_WEBSERVER.PY EXECUTABLE")
+    print("-------------------")
+    time.sleep(1)
     # make the check_webserver.py file executable before its run
-    make_executable = "ssh -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " 'chmod 700 check_webserver.py'"
+    make_executable = "ssh -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " 'chmod +x check_webserver.py'"
     (status, output) = subprocess.getstatusoutput(make_executable)
-    print(output)
+    print("output: " + output)
+    print("status: ", status)
     # let user know if check_webserver is executable or not
     if(status == 0):
         print("check_webserver is executable")
         time.sleep(2)
 
-        # after informing user that it's executable, run the file
-        exe_check_webserver = 'ssh -i ~/dev-ops/paddykeypair.pem ec2-user@' + pub_ip_inst + ' ./check_webserver.py'
-        (status, output) = subprocess.getstatusoutput(exe_check_webserver)
         print()
-        # print the output of the check_webserver file when run
-        print(output)
+        print("EXECUTING CHECK_WEBSERVER.PY")
+        print("-------------------")
+        time.sleep(1)
+        # after informing user that it's executable, run the file
+        exe_check_webserver = "ssh  -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " './check_webserver.py'"
+        (status, output) = subprocess.getstatusoutput(exe_check_webserver)
+        # print the output and status of the check_webserver file when run
+        print("output: " + output)
+        print("status: ", status)
         # let user know whether the file execution was successful or not
         if (status == 0):
             print("execute_check_webserver successful")
@@ -93,7 +121,14 @@ def execute_check_webserver(pub_ip_inst):
         print("check_webserver is not executable")
 
 
-
+def create_bucket():
+    for bucket_name in sys.argv[1:]:
+        try:
+            response = s3.create_bucket(Bucket=bucket_name,
+                                            CreateBucketConfiguration={'LocationConstraint': 'eu-west-1'})
+            print(response)
+        except Exception as error:
+            print(error)
 
 
 def main():
@@ -101,7 +136,6 @@ def main():
     pub_ip_inst = ssh_check(instance)
     securecopy_check_webserver(pub_ip_inst)
     execute_check_webserver(pub_ip_inst)
-
 
 
 if __name__ == '__main__':
