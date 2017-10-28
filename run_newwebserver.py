@@ -19,17 +19,7 @@ def create_instance():
         MaxCount=1,
         SecurityGroupIds=['sg-e8c22993'],
         KeyName='paddykeypair',
-        TagSpec=[
-            {
-                'Resource': 'instance',
-                'Tags': [
-                    {
-                        'Key': 'Name',
-                        'Value': 'Demo Instance'
-                    }
-                ]
-            }
-        ],
+        TagSpec=[{'Resource': 'instance', 'Tags': [{'Key': 'Name', 'Value': 'Assignment Instance'}]}],
         UserData='''#!bin/bash
             yum -y update
             yum -y install nginx
@@ -160,9 +150,9 @@ def create_bucket():
 
 
 # adding a file to a bucket
-def add_file_to_bucket(bucket_name):
+def add_file_to_bucket(bucket_name, object_name):
     # bucket_name = sys.argv[1]
-    object_name = sys.argv[2]
+    # object_name = sys.argv[2]
     try:
         response = s3.Object(bucket_name, os.path.basename(object_name)).put(Body=open(object_name, 'rb'))
         print(response)
