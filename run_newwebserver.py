@@ -13,7 +13,6 @@ s3 = boto3.resource("s3")
 # create an instance
 def create_instance():
 
-
     instance = ec2.create_instances(
         ImageId='ami-acd005d5',
         MinCount=1,
@@ -53,16 +52,6 @@ def create_instance():
     instance.reload()
     print("Public IP address: ", instance.public_ip_address)
     print()
-
-    instance.create_tag(
-        Resources=[instance().id]
-        Tag=[
-            {
-                'Key': 'Name',
-                'Value': 'Demo instance'
-            },
-        ]
-    )
 
     return instance
 
@@ -140,7 +129,7 @@ def execute_check_webserver(instance, pub_ip_inst):
         print("output: " + output)
         print("status: ", status)
         # let user know whether the file execution was successful or not
-        if (status == 0):
+        if status == 0:
             print("execute_check_webserver successful")
         else:
             print("execute_check_webserver failed")
@@ -185,7 +174,7 @@ def main():
     instance = create_instance()
     pub_ip_inst = ssh_check(instance)
     securecopy_check_webserver(pub_ip_inst)
-    execute_check_webserver(pub_ip_inst)
+    execute_check_webserver(instance, pub_ip_inst)
     create_bucket()
 
 
