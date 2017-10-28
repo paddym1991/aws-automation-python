@@ -13,12 +13,24 @@ s3 = boto3.resource("s3")
 # create an instance
 def create_instance():
 
+
     instance = ec2.create_instances(
         ImageId='ami-acd005d5',
         MinCount=1,
         MaxCount=1,
         SecurityGroupIds=['sg-e8c22993'],
         KeyName='paddykeypair',
+        TagSpec=[
+            {
+                'Resource': 'instance',
+                'Tags': [
+                    {
+                        'Key': 'Name',
+                        'Value': 'Demo Instance'
+                    }
+                ]
+            }
+        ],
         UserData='''#!bin/bash
             yum -y update
             yum -y install nginx
@@ -41,6 +53,16 @@ def create_instance():
     instance.reload()
     print("Public IP address: ", instance.public_ip_address)
     print()
+
+    instance.create_tag(
+        Resources=[instance().id]
+        Tag=[
+            {
+                'Key': 'Name',
+                'Value': 'Demo instance'
+            },
+        ]
+    )
 
     return instance
 
@@ -88,8 +110,7 @@ def securecopy_check_webserver(pub_ip_inst):
 
 
 # execute the check_webserver
-def execute_check_webserver(pub_ip_inst):
-    'yum -y install python35'
+def execute_check_webserver(instance, pub_ip_inst):
     time.sleep(2)
     print()
     print("MAKING CHECK_WEBSERVER.PY EXECUTABLE")
@@ -97,6 +118,7 @@ def execute_check_webserver(pub_ip_inst):
     time.sleep(1)
     # make the check_webserver.py file executable before its run
     make_executable = "ssh -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " 'chmod +x check_webserver.py'"
+    instance.reload()
     (status, output) = subprocess.getstatusoutput(make_executable)
     print("output: " + output)
     print("status: ", status)
@@ -112,6 +134,7 @@ def execute_check_webserver(pub_ip_inst):
         # after informing user that it's executable, run the file
         exe_check_webserver = "ssh -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " './check_webserver.py'"
         print("command to run: ", exe_check_webserver)
+        instance.reload()
         (status, output) = subprocess.getstatusoutput(exe_check_webserver)
         # print the output and status of the check_webserver file when run
         print("output: " + output)
