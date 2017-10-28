@@ -10,7 +10,7 @@ import subprocess
 
 
 def start_nginx():
-    cmd = 'ps -A | grep nginx | grep -v grep'
+    cmd = 'ps -A | grep nginx'
 
     (status, output) = subprocess.getstatusoutput(cmd)
 

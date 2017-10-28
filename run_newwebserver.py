@@ -4,13 +4,14 @@ import boto3
 import time
 import subprocess
 import sys
+import os
 
-ec2 = boto3.resource('ec2')
+ec2 = boto3.resource("ec2")
 s3 = boto3.resource("s3")
 
-#create an instance
-def create_instance():
 
+# create an instance
+def create_instance():
 
     instance = ec2.create_instances(
         ImageId='ami-acd005d5',
@@ -44,14 +45,13 @@ def create_instance():
     return instance
 
 
-#check to see if ssh will work on instance
+# check to see if ssh will work on instance
 def ssh_check(instance):
 
-
-    #create a public ip variable for instance
+    # create a public ip variable for instance
     pub_ip_inst = instance.public_ip_address
 
-    #ssh check command
+    # ssh check command
     print("CHECKING SSH ACCESS ON INSTANCE...")
     cmd_ssh_check = "ssh -o StrictHostKeyChecking=no -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " 'pwd'"
     time.sleep(40)
@@ -81,7 +81,7 @@ def securecopy_check_webserver(pub_ip_inst):
     print("output: " + output)
     print("status: ", status)
     # check if check_webserver was copied
-    if (status == 0):
+    if status == 0:
         print("check_webserver successfully copied")
     else:
         print("check_webserver not copied")
@@ -89,6 +89,7 @@ def securecopy_check_webserver(pub_ip_inst):
 
 # execute the check_webserver
 def execute_check_webserver(pub_ip_inst):
+    'yum -y install python35'
     time.sleep(2)
     print()
     print("MAKING CHECK_WEBSERVER.PY EXECUTABLE")
@@ -100,7 +101,7 @@ def execute_check_webserver(pub_ip_inst):
     print("output: " + output)
     print("status: ", status)
     # let user know if check_webserver is executable or not
-    if(status == 0):
+    if status == 0:
         print("check_webserver is executable")
         time.sleep(2)
 
@@ -132,7 +133,7 @@ def create_bucket():
     print("-------------------")
     time.sleep(1)
     # get bucket name input from user
-    bucket_name = input("Please Enter Bucket name: ")
+    bucket_name = input("Please Enter Bucket name (unique): ")
     try:
         # create bucket with location in Ireland
         response = s3.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={'LocationConstraint': 'eu-west-1'})
@@ -140,6 +141,19 @@ def create_bucket():
         print("creating bucket successful")
         print(response)
     # if there is an error creating a bucket, print message for user
+    except Exception as error:
+        print(error)
+
+    return bucket_name
+
+
+# adding a file to a bucket
+def add_file_to_bucket(bucket_name):
+    # bucket_name = sys.argv[1]
+    object_name = sys.argv[2]
+    try:
+        response = s3.Object(bucket_name, os.path.basename(object_name)).put(Body=open(object_name, 'rb'))
+        print(response)
     except Exception as error:
         print(error)
 
