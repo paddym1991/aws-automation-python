@@ -154,8 +154,46 @@ def add_file_to_bucket(bucket_name, object_name):
     # bucket_name = sys.argv[1]
     # object_name = sys.argv[2]
     try:
-        response = s3.Object(bucket_name, os.path.basename(object_name)).put(Body=open(object_name, 'rb'))
+        # command to add the file to the bucket                         # give file readable permission
+        response = s3.Object(bucket_name, os.path.basename(object_name)).put(ACL='public-read', Body=open(object_name, 'rb'))
+        print("File added to bucket called: ", bucket_name)
         print(response)
+    except Exception as error:
+        print(error)
+
+
+def add_file_to_index(instance, pub_ip_inst, bucket_name, object_name):
+    try:
+
+        # Ask user if they want to add the uploaded file to the index page for this instance
+        add_to_index = input("Add this file to index page (Y/N) ?: ")
+        if add_to_index.upper() == 'Y':
+            # Create a url for the uploaded file
+            print("Creating URL for file")
+            index_url = "https://s3-eu-west-1.amazonaws.com/" + bucket_name + "/" + object_name
+
+            try:
+                # command to run to add the image to index.html using the url
+                cmd_add_image_to_index = "scp -i ~/dev-ops/paddykeypair.pem check_webserver.py ec2-user@" \
+                                + pub_ip_inst + "'echo \"<img src=" + index_url + ">\" >> /usr/share/nginx/html/index.html'"
+                print("command to run: ", cmd_add_image_to_index)
+                # run the command and check the output & status
+                (status, output) = subprocess.getstatusoutput(cmd_add_image_to_index)
+                instance.reload()
+                print("output: " + output)
+                print("status: ", status)
+                # if status is 0 then image was added, else it wasn't
+                if status == 0:
+                    print("Image has been added to index.html")
+                else:
+                    print("Error adding image to index.html")
+
+            except Exception as error:
+                print(error)
+        elif add_file_to_index.upper == 'N':
+            print("File not uploaded.")
+        else:
+            print("Incorrect option entered: ", add_to_index)
     except Exception as error:
         print(error)
 
