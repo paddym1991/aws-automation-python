@@ -13,17 +13,20 @@ s3 = boto3.resource("s3")
 # create an instance
 def create_instance():
 
+    tag_name = input("Please enter tag name of the instance: ")
+    key_name = input("Please enter key name: ")
+
     instance = ec2.create_instances(
         ImageId='ami-acd005d5',
         MinCount=1,
         MaxCount=1,
         SecurityGroupIds=['sg-e8c22993'],
-        KeyName='paddykeypair',
-        TagSpec=[{'Resource': 'instance', 'Tags': [{'Key': 'Name', 'Value': 'Assignment Instance'}]}],
+        KeyName=key_name,
+        TagSpecifications=[{'ResourceType': 'instance', 'Tags': [{'Key': 'Name', 'Value': tag_name}]}],
         UserData='''#!bin/bash
             yum -y update
-            yum -y install nginx
             yum -y install python35
+            yum -y install nginx
             service nginx start
             chkconfig nginx on
             touch /home/ec2-user/testfile''',
@@ -42,8 +45,13 @@ def create_instance():
     instance.reload()
     print("Public IP address: ", instance.public_ip_address)
     print()
+    # create a public ip variable for instance
+    pub_ip_inst = instance.public_ip_address
 
-    return instance
+   # ssh_check(instance)
+   # securecopy_check_webserver(pub_ip_inst)
+
+    return instance, pub_ip_inst
 
 
 # check to see if ssh will work on instance
@@ -109,6 +117,9 @@ def execute_check_webserver(instance, pub_ip_inst):
         print()
         print("EXECUTING CHECK_WEBSERVER.PY")
         print("-------------------")
+        install_python = "ssh -o StrictHostKeyChecking=no -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + \
+                         " 'sudo yum install -y python35'"
+        (status, output) = subprocess.getstatusoutput(install_python)
         time.sleep(1)
         # after informing user that it's executable, run the file
         exe_check_webserver = "ssh -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " './check_webserver.py'"
@@ -123,6 +134,10 @@ def execute_check_webserver(instance, pub_ip_inst):
             print("execute_check_webserver successful")
         else:
             print("execute_check_webserver failed")
+            install_python = "ssh -o StrictHostKeyChecking=no -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + \
+                             " 'sudo yum install -y python35'"
+            (status, output) = subprocess.getstatusoutput(install_python)
+            execute_check_webserver(instance, pub_ip_inst)
     else:
         print("check_webserver is not executable")
 
@@ -164,7 +179,6 @@ def add_file_to_bucket(bucket_name, object_name):
 
 def add_file_to_index(instance, pub_ip_inst, bucket_name, object_name):
     try:
-
         # Ask user if they want to add the uploaded file to the index page for this instance
         add_to_index = input("Add this file to index page (Y/N) ?: ")
         if add_to_index.upper() == 'Y':
@@ -199,11 +213,13 @@ def add_file_to_index(instance, pub_ip_inst, bucket_name, object_name):
 
 
 def main():
-    instance = create_instance()
+    instance, pub_ip_inst = create_instance()
     pub_ip_inst = ssh_check(instance)
     securecopy_check_webserver(pub_ip_inst)
     execute_check_webserver(instance, pub_ip_inst)
-    create_bucket()
+    (bucket_name, object_name) = create_bucket()
+   # add_file_to_bucket(bucket_name, object_name)
+    #add_file_to_index(instance, pub_ip_inst, bucket_name, object_name)
 
 
 if __name__ == '__main__':
