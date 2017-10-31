@@ -16,6 +16,7 @@ def create_instance():
 
     tag_name = input("Please enter tag name of the instance: ")
     key_name = input("Please enter key name: ")
+    key_path = input("Please enter path to key: ")
 
     instance = ec2.create_instances(
         ImageId='ami-acd005d5',
@@ -49,21 +50,21 @@ def create_instance():
     # create a public ip variable for instance
     pub_ip_inst = instance.public_ip_address
 
-    ssh_check(instance)
-    securecopy_check_webserver(pub_ip_inst)
+    ssh_check(instance, key_path)
+    securecopy_check_webserver(pub_ip_inst, key_path)
 
-    return instance, pub_ip_inst
+    return instance, pub_ip_inst, key_path
 
 
 # check to see if ssh will work on instance
-def ssh_check(instance):
+def ssh_check(instance, key_path):
 
     # create a public ip variable for instance
     pub_ip_inst = instance.public_ip_address
 
     # ssh check command
     print("CHECKING SSH ACCESS ON INSTANCE...")
-    cmd_ssh_check = "ssh -o StrictHostKeyChecking=no -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " 'pwd'"
+    cmd_ssh_check = "ssh -o StrictHostKeyChecking=no -i " + key_path + " ec2-user@" + pub_ip_inst + " 'pwd'"
     time.sleep(40)
     print("-------------------")
     instance.reload()
@@ -79,13 +80,13 @@ def ssh_check(instance):
 
 
 # copy check_webserver.py to the instance
-def securecopy_check_webserver(pub_ip_inst):
+def securecopy_check_webserver(pub_ip_inst, key_path):
     time.sleep(2)
     print()
     print("COPYING CHECK_WEBSERVER.PY TO INSTANCE")
     print("-------------------")
     time.sleep(1)
-    cmd_scp = "scp -i ~/dev-ops/paddykeypair.pem check_webserver.py ec2-user@" + pub_ip_inst + ":."
+    cmd_scp = "scp -i " + key_path + " check_webserver.py ec2-user@" + pub_ip_inst + ":."
     # carrying out secure copy command
     (status, output) = subprocess.getstatusoutput(cmd_scp)
     print("output: " + output)
@@ -98,14 +99,14 @@ def securecopy_check_webserver(pub_ip_inst):
 
 
 # execute the check_webserver
-def execute_check_webserver(instance, pub_ip_inst):
+def execute_check_webserver(instance, pub_ip_inst, key_path):
     time.sleep(2)
     print()
     print("MAKING CHECK_WEBSERVER.PY EXECUTABLE")
     print("-------------------")
     time.sleep(1)
     # make the check_webserver.py file executable before its run
-    make_executable = "ssh -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " 'chmod +x check_webserver.py'"
+    make_executable = "ssh -i " + key_path + " ec2-user@" + pub_ip_inst + " 'chmod +x check_webserver.py'"
     instance.reload()
     (status, output) = subprocess.getstatusoutput(make_executable)
     print("output: " + output)
@@ -118,12 +119,12 @@ def execute_check_webserver(instance, pub_ip_inst):
         print()
         print("EXECUTING CHECK_WEBSERVER.PY")
         print("-------------------")
-        install_python = "ssh -o StrictHostKeyChecking=no -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + \
+        install_python = "ssh -o StrictHostKeyChecking=no -i " + key_path + " ec2-user@" + pub_ip_inst + \
                          " 'sudo yum install -y python35'"
         (status, output) = subprocess.getstatusoutput(install_python)
         time.sleep(1)
         # after informing user that it's executable, run the file
-        exe_check_webserver = "ssh -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " './check_webserver.py'"
+        exe_check_webserver = "ssh -i " + key_path + " ec2-user@" + pub_ip_inst + " './check_webserver.py'"
         print("command to run: ", exe_check_webserver)
         instance.reload()
         (status, output) = subprocess.getstatusoutput(exe_check_webserver)
@@ -136,7 +137,7 @@ def execute_check_webserver(instance, pub_ip_inst):
         else:
             print("execute_check_webserver failed")
             (status, output) = subprocess.getstatusoutput(install_python)
-            execute_check_webserver(instance, pub_ip_inst)
+            execute_check_webserver(instance, pub_ip_inst, key_path)
     else:
         print("check_webserver is not executable")
 
@@ -246,14 +247,33 @@ def add_file_to_index(instance, pub_ip_inst, bucket_name, object_name):
         print(error)
 
 
+def menu():
+
+    print('''
+    Welcome to RunNewWebserver
+    --------------------------
+    1) Create instance & bucket & add image 
+    2) Create instance 
+    3) Create bucket 
+    4) Add image to bucket
+    5) Add image to nginx
+    6) Run check_webserver
+    0. Exit\n
+    ''')
+
+
 def main():
-    instance, pub_ip_inst = create_instance()
-   # pub_ip_inst = ssh_check(instance)
-    #securecopy_check_webserver(pub_ip_inst)
-    execute_check_webserver(instance, pub_ip_inst)
-    bucket_name = create_bucket()
-    object_name = add_file_to_bucket(bucket_name)
-    add_file_to_index(instance, pub_ip_inst, bucket_name, object_name)
+
+    while True:
+        menu()
+        menu_option = input("Please Enter Command: ")
+        print()
+        if menu_option == "1":
+            instance, pub_ip_inst, key_path = create_instance()
+            execute_check_webserver(instance, pub_ip_inst, key_path)
+            bucket_name = create_bucket()
+            object_name = add_file_to_bucket(bucket_name)
+            add_file_to_index(instance, pub_ip_inst, bucket_name, object_name)
 
 
 if __name__ == '__main__':
