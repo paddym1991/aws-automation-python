@@ -135,8 +135,6 @@ def execute_check_webserver(instance, pub_ip_inst):
             print("execute_check_webserver successful")
         else:
             print("execute_check_webserver failed")
-            install_python = "ssh -o StrictHostKeyChecking=no -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + \
-                             " 'sudo yum install -y python35'"
             (status, output) = subprocess.getstatusoutput(install_python)
             execute_check_webserver(instance, pub_ip_inst)
     else:
@@ -150,28 +148,29 @@ def create_bucket():
     print("CREATING A BUCKET")
     print("-------------------")
     time.sleep(1)
+    s3 = boto3.client('s3')
     # get bucket name input from user
     bucket_name = input("Please Enter Bucket name (unique): ")
     try:
         # create bucket with location in Ireland
-        response = s3.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={'LocationConstraint': 'eu-west-1'})
+        response = s3.create_bucket(Bucket=bucket_name, ACL='public-read', CreateBucketConfiguration={'LocationConstraint': 'eu-west-1'})
 
-        bucket_policy = {
-            'version': '2012-10-17',
-            'Statement': [{
-                'Sid': 'AllowPublicRead',
-                'Effect': 'Allow',
-                'Principal': '*',
-                'Action': ['s3@GetObject'],
-                'Resource': 'arn:aws:s3:::' + bucket_name + '/*'
-            }]
-        }
+      #  bucket_policy = {
+       #     'version': '2012-10-17',
+        #    'Statement': [{
+         #       'Sid': 'AllowPublicRead',
+          #      'Effect': 'Allow',
+           #     'Principal': '*',
+            #    'Action': ['s3@GetObject'],
+             #   'Resource': ['arn:aws:s3:::' + bucket_name + '/*']
+           # }]
+      #  }
 
-        bucket_policy = json.dumps(bucket_policy)
-        boto3.client('s3').put_bucket_policy(
-            Bucket=bucket_name,
-            Policy=bucket_policy
-        )
+      #  bucket_policy = json.dumps(bucket_policy)
+      #  s3.put_bucket_policy(
+      #      Bucket=bucket_name,
+      #      Policy=bucket_policy
+      #  )
 
         # if bucket successfully created then print message for user
         print("creating bucket successful")
@@ -193,7 +192,7 @@ def add_file_to_bucket(bucket_name):
     try:
         object_name = input("name of image: ")
         # command to add the file to the bucket                         # give file readable permission
-        response = s3.Object(bucket_name, os.path.basename(object_name)).put(ACL='public-read', Body=open(object_name, 'rb'))
+        response = s3.Object(bucket_name, object_name).put(ACL='public-read', Body=open(object_name, 'rb'))
         print("File added to bucket called: ", bucket_name)
         print("Response: ", response)
     except Exception as error:
@@ -215,11 +214,16 @@ def add_file_to_index(instance, pub_ip_inst, bucket_name, object_name):
             # Create a url for the uploaded file
             print("Creating URL for file")
             image_url = "https://s3-eu-west-1.amazonaws.com/" + bucket_name + "/" + object_name
+            print(image_url)
+
+            chmod_cmd = "ssh -o StrictHostKeyChecking=no -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + "sudo chmod +x /usr/share/nginx/html/index.html"
+            (output, status) = subprocess.getstatusoutput(chmod_cmd)
 
             try:
                 # command to run to add the image to index.html using the url
-                cmd_add_image_to_index = "ssh -t -o StrictHostKeyChecking=no -i ~/dev-ops/paddykeypair.pem ec2-user@" \
-                                + pub_ip_inst + " 'sudo echo \"<img src=" + image_url + ">\" >> /usr/share/nginx/html/index.html'"
+                cmd_add_image_to_index = "ssh -o StrictHostKeyChecking=no -i ~/dev-ops/paddykeypair.pem ec2-user@" + pub_ip_inst + " 'echo \"<html>" \
+                                        "<img src=" + image_url + " alt=\'Python Image\'/></html>\" " \
+                                         "| sudo tee -a /usr/share/nginx/html/index.html'"
                 print("command to run: ", cmd_add_image_to_index)
                 # run the command and check the output & status
                 (status, output) = subprocess.getstatusoutput(cmd_add_image_to_index)
